@@ -6,11 +6,6 @@ on:
     branches:
       - "**"
   workflow_dispatch:
-    inputs:
-      security_action:
-        description: 'Security gate action (recheck/fail)'
-        required: false
-        default: 'initial'
 permissions:
   scm-token-own: read
   scm-token-org: read
@@ -135,33 +130,20 @@ jobs:
           fi
           
           THRESHOLD=5
-          ACTION="${{ github.event.inputs.security_action || 'initial' }}"
           
           if [ "$VERY_HIGH_COUNT" -ge "$THRESHOLD" ]; then
             echo "🚨 SECURITY THRESHOLD EXCEEDED: $VERY_HIGH_COUNT Very High vulnerabilities (≥$THRESHOLD)"
+            echo ""
+            echo "📋 SECURITY GATE - Choose your action:"
+            echo "  Option 1: Fix vulnerabilities and manually re-run this workflow within 60 minutes"
+            echo "  Option 2: Cancel this workflow if fixes will take longer than 60 minutes"
+            echo ""
+            echo "⏳ Workflow will timeout and fail in 60 minutes if no action is taken..."
             
-            if [ "$ACTION" = "initial" ]; then
-              echo ""
-              echo "📋 SECURITY GATE OPTIONS:"
-              echo "  1. Re-run this workflow with security_action=recheck after fixing vulnerabilities"
-              echo "  2. Re-run this workflow with security_action=fail to fail immediately"
-              echo ""
-              echo "⏳ Waiting 60 minutes for developer action..."
-              sleep 3600
-              echo "⏰ 60-minute timeout reached - failing workflow"
-              exit 1
-            elif [ "$ACTION" = "recheck" ]; then
-              echo "🔄 Rechecking vulnerabilities after fixes..."
-              if [ "$VERY_HIGH_COUNT" -ge "$THRESHOLD" ]; then
-                echo "❌ Still $VERY_HIGH_COUNT Very High vulnerabilities (≥$THRESHOLD) - Failing workflow"
-                exit 1
-              else
-                echo "✅ Security check passed: $VERY_HIGH_COUNT Very High vulnerabilities (<$THRESHOLD)"
-              fi
-            elif [ "$ACTION" = "fail" ]; then
-              echo "❌ Developer chose to fail workflow due to security vulnerabilities"
-              exit 1
-            fi
+            sleep 3600
+            
+            echo "⏰ 60-minute timeout reached - failing workflow due to unresolved security vulnerabilities"
+            exit 1
           else
             echo "✅ Security check passed: $VERY_HIGH_COUNT Very High vulnerabilities (<$THRESHOLD)"
           fi
