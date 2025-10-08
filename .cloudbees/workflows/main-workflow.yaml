@@ -172,6 +172,7 @@ jobs:
           fi
       - name: Fail on Immediate Choice
         if: steps.security-gate.outputs.response == 'fail'
+        uses: docker://alpine:latest
         run: |
           echo "❌ Developer chose to fail workflow due to security vulnerabilities"
           exit 1
