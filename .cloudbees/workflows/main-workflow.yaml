@@ -190,7 +190,7 @@ jobs:
     needs: build-container-image
   security-gate:
     needs: security-check
-    if: ${{ needs.security-check.outputs.vuln_count > 0 && (inputs.bypass_security_gate != true) }}
+    if: ${{ needs.security-check.outputs.vuln_count > 0 }}
     steps:
       - name: Security Gate - 60 Minute Pause
         uses: docker://alpine:latest
