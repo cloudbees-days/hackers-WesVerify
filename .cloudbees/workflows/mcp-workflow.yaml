@@ -47,8 +47,8 @@ jobs:
           }
           EOF
           
-          echo "vuln_count=9" >> $CLOUDBEES_OUTPUTS
-          echo "severity_level=very_high" >> $CLOUDBEES_OUTPUTS
+          echo "9" > $CLOUDBEES_OUTPUTS/vuln_count
+          echo "very_high" > $CLOUDBEES_OUTPUTS/severity_level
 
       - name: Generate Security Evidence Report
         uses: cloudbees-io/publish-evidence-item@v1
