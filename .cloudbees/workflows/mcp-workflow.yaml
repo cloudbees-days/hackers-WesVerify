@@ -87,6 +87,7 @@ jobs:
     if: ${{ needs.mcp-security-check.outputs.vuln_count > 0 && !inputs.bypass_security_gate }}
     steps:
       - name: Security Gate - 60 Minute Pause
+        uses: docker://alpine:latest
         run: |
           echo "🚨 SECURITY GATE ACTIVATED 🚨"
           echo "Found ${{ needs.mcp-security-check.outputs.vuln_count }} vulnerabilities"
