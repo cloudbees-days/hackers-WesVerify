@@ -6,6 +6,11 @@ on:
     branches:
       - "**"
   workflow_dispatch:
+    inputs:
+      security_action:
+        description: 'Security gate action (recheck/fail)'
+        required: false
+        default: 'initial'
 permissions:
   scm-token-own: read
   scm-token-org: read
@@ -111,7 +116,6 @@ jobs:
   security-check:
     steps:
       - name: Security Vulnerability Check
-        id: security-check
         uses: docker://alpine:latest
         run: |
           apk add --no-cache curl jq
@@ -131,51 +135,36 @@ jobs:
           fi
           
           THRESHOLD=5
+          ACTION="${{ github.event.inputs.security_action || 'initial' }}"
+          
           if [ "$VERY_HIGH_COUNT" -ge "$THRESHOLD" ]; then
             echo "🚨 SECURITY THRESHOLD EXCEEDED: $VERY_HIGH_COUNT Very High vulnerabilities (≥$THRESHOLD)"
-            echo "VULN_COUNT=$VERY_HIGH_COUNT" >> $CLOUDBEES_OUTPUTS/VULN_COUNT
+            
+            if [ "$ACTION" = "initial" ]; then
+              echo ""
+              echo "📋 SECURITY GATE OPTIONS:"
+              echo "  1. Re-run this workflow with security_action=recheck after fixing vulnerabilities"
+              echo "  2. Re-run this workflow with security_action=fail to fail immediately"
+              echo ""
+              echo "⏳ Waiting 60 minutes for developer action..."
+              sleep 3600
+              echo "⏰ 60-minute timeout reached - failing workflow"
+              exit 1
+            elif [ "$ACTION" = "recheck" ]; then
+              echo "🔄 Rechecking vulnerabilities after fixes..."
+              if [ "$VERY_HIGH_COUNT" -ge "$THRESHOLD" ]; then
+                echo "❌ Still $VERY_HIGH_COUNT Very High vulnerabilities (≥$THRESHOLD) - Failing workflow"
+                exit 1
+              else
+                echo "✅ Security check passed: $VERY_HIGH_COUNT Very High vulnerabilities (<$THRESHOLD)"
+              fi
+            elif [ "$ACTION" = "fail" ]; then
+              echo "❌ Developer chose to fail workflow due to security vulnerabilities"
+              exit 1
+            fi
           else
             echo "✅ Security check passed: $VERY_HIGH_COUNT Very High vulnerabilities (<$THRESHOLD)"
-            echo "VULN_COUNT=$VERY_HIGH_COUNT" >> $CLOUDBEES_OUTPUTS/VULN_COUNT
           fi
-      - name: Security Gate Decision
-        id: security-gate
-        if: steps.security-check.outputs.VULN_COUNT >= 5
-        uses: cloudbees-io/input@v1
-        with:
-          message: |
-            🚨 Security Threshold Exceeded: ${{ steps.security-check.outputs.VULN_COUNT }} Very High vulnerabilities found (≥5)
-            
-            Choose your action:
-            - **recheck**: Pause for up to 60 minutes to fix vulnerabilities, then recheck
-            - **fail**: Fail the workflow immediately
-          options: "recheck,fail"
-          timeout: 3600
-          default: "fail"
-      - name: Recheck Vulnerabilities
-        if: steps.security-gate.outputs.response == 'recheck'
-        uses: docker://alpine:latest
-        run: |
-          apk add --no-cache curl jq
-          echo "🔄 Rechecking vulnerabilities after fixes..."
-          
-          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.CLOUDBEES_API_TOKEN }}" \
-            "https://api.cloudbees.io/v1/organizations/2f05829d-ea2c-429e-7d3b-98ba87db3776/sub-organizations/2f05829d-ea2c-429e-7d3b-98ba87db3776/endpoints/e8c14f62-66e8-4846-a077-3b9a887a7255/components/e21c6290-7343-490e-951a-6a086594ad3a/branches/bf61619e-d63a-435d-a6e8-47666b6a4e38/security/issues/open")
-          
-          VERY_HIGH_COUNT=$(echo "$RESPONSE" | jq '[.issues[] | select(.severity == "VERY_HIGH")] | length')
-          
-          if [ "$VERY_HIGH_COUNT" -ge "5" ]; then
-            echo "❌ Still $VERY_HIGH_COUNT Very High vulnerabilities (≥5) - Failing workflow"
-            exit 1
-          else
-            echo "✅ Security check passed: $VERY_HIGH_COUNT Very High vulnerabilities (<5)"
-          fi
-      - name: Fail on Immediate Choice
-        if: steps.security-gate.outputs.response == 'fail'
-        uses: docker://alpine:latest
-        run: |
-          echo "❌ Developer chose to fail workflow due to security vulnerabilities"
-          exit 1
     needs: build-container-image
   scan:
     outputs:
