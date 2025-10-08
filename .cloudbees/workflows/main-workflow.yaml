@@ -117,15 +117,21 @@ jobs:
           echo "🔍 CloudBees Security Vulnerability Check"
           echo "=========================================="
           
-          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.CLOUDBEES_API_TOKEN }}" \
-            "https://api.cloudbees.io/v1/organizations/2f05829d-ea2c-429e-7d3b-98ba87db3776/sub-organizations/2f05829d-ea2c-429e-7d3b-98ba87db3776/endpoints/e8c14f62-66e8-4846-a077-3b9a887a7255/components/e21c6290-7343-490e-951a-6a086594ad3a/branches/bf61619e-d63a-435d-a6e8-47666b6a4e38/security/issues/open")
+          # Use the correct CloudBees API endpoint that matches MCP server pattern
+          RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: Bearer ${{ secrets.CLOUDBEES_API_TOKEN }}" \
+            "https://api.cloudbees.io/v1/sub-organizations/2f05829d-ea2c-429e-7d3b-98ba87db3776/endpoints/e8c14f62-66e8-4846-a077-3b9a887a7255/components/e21c6290-7343-490e-951a-6a086594ad3a/branches/bf61619e-d63a-435d-a6e8-47666b6a4e38/security/issues/open")
           
-          if [ $? -eq 0 ] && echo "$RESPONSE" | jq -e '.issues' > /dev/null 2>&1; then
-            VERY_HIGH_COUNT=$(echo "$RESPONSE" | jq '[.issues[] | select(.severity == "VERY_HIGH")] | length')
+          HTTP_CODE="${RESPONSE: -3}"
+          RESPONSE_BODY="${RESPONSE%???}"
+          
+          echo "HTTP Status: $HTTP_CODE"
+          
+          if [ "$HTTP_CODE" = "200" ] && echo "$RESPONSE_BODY" | jq -e '.issues' > /dev/null 2>&1; then
+            VERY_HIGH_COUNT=$(echo "$RESPONSE_BODY" | jq '[.issues[] | select(.severity == "VERY_HIGH")] | length')
             echo "✅ Successfully retrieved security data"
             echo "Very High vulnerabilities found: $VERY_HIGH_COUNT"
           else
-            echo "⚠️ API call failed, using fallback count"
+            echo "⚠️ API call failed with status $HTTP_CODE, using fallback count"
             VERY_HIGH_COUNT=9
           fi
           
