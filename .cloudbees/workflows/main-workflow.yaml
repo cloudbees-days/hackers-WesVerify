@@ -181,6 +181,67 @@ jobs:
     steps:
       - name: Checkout
         uses: cloudbees-io/checkout@v1
+      - name: Check Very High Vulnerabilities
+        id: vulnerability-check
+        uses: docker://alpine:3.19
+        run: |
+          apk add --no-cache curl jq
+          
+          # Simulate Very High vulnerability count for testing (replace with actual API call)
+          # VERY_HIGH_COUNT=$(curl -s -H "Authorization: Bearer ${{ secrets.UNIFY_TOKEN }}" \
+          #   "https://api.cloudbees.io/v1/analytics/security/vulnerabilities?severity=VERY_HIGH" | \
+          #   jq '.count // 0')
+          
+          # For testing purposes, simulate 6 Very High vulnerabilities
+          VERY_HIGH_COUNT=6
+          
+          echo "Very High Vulnerabilities Found: $VERY_HIGH_COUNT"
+          echo "$VERY_HIGH_COUNT" > $CLOUDBEES_OUTPUTS/VERY_HIGH_COUNT
+          
+          if [ "$VERY_HIGH_COUNT" -ge 5 ]; then
+            echo "THRESHOLD_EXCEEDED" > $CLOUDBEES_OUTPUTS/GATE_STATUS
+            exit 1
+          else
+            echo "THRESHOLD_PASSED" > $CLOUDBEES_OUTPUTS/GATE_STATUS
+          fi
+      - name: Security Vulnerability Decision Gate
+        if: steps.vulnerability-check.outputs.GATE_STATUS == 'THRESHOLD_EXCEEDED'
+        timeout-minutes: 60
+        delegates: cloudbees-io/manual-approval/custom-job.yml@v1
+        with:
+          instructions: |
+            🚨 **SECURITY ALERT: Very High Vulnerabilities Detected**
+            
+            **Count:** ${{ steps.vulnerability-check.outputs.VERY_HIGH_COUNT }} (Threshold: ≥5)
+            
+            **Options:**
+            1. **APPROVE** - I have fixed the vulnerabilities, recheck and continue
+            2. **REJECT** - Fail the workflow, issues will take >60 minutes to fix
+            
+            ⏰ **Timeout:** 60 minutes (workflow fails if no action taken)
+          approvers: "${{ github.actor }}"
+      - name: Recheck Vulnerabilities After Fix
+        if: steps.vulnerability-check.outputs.GATE_STATUS == 'THRESHOLD_EXCEEDED'
+        uses: docker://alpine:3.19
+        run: |
+          apk add --no-cache curl jq
+          
+          # Simulate recheck (replace with actual API call)
+          # VERY_HIGH_COUNT=$(curl -s -H "Authorization: Bearer ${{ secrets.UNIFY_TOKEN }}" \
+          #   "https://api.cloudbees.io/v1/analytics/security/vulnerabilities?severity=VERY_HIGH" | \
+          #   jq '.count // 0')
+          
+          # For testing, simulate that vulnerabilities were fixed
+          VERY_HIGH_COUNT=2
+          
+          echo "Recheck - Very High Vulnerabilities: $VERY_HIGH_COUNT"
+          
+          if [ "$VERY_HIGH_COUNT" -ge 5 ]; then
+            echo "❌ Vulnerabilities still exceed threshold after fix attempt"
+            exit 1
+          else
+            echo "✅ Vulnerability count now acceptable: $VERY_HIGH_COUNT"
+          fi
       - uses: cloudbees-days/setup-kubeconfig
         name: Set kubeconfig
         with:
