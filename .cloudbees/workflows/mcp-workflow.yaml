@@ -64,9 +64,9 @@ jobs:
             | Severity | Count |
             |----------|-------|
             | Very High | 9 |
-            | High | 0 |
-            | Medium | 0 |
-            | Low | 0 |
+            | High | Not Checked |
+            | Medium | Not Checked |
+            | Low | Not Checked |
             
             ## Vulnerability Details
             | Package | Severity | Description |
