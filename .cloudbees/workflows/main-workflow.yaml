@@ -328,6 +328,5 @@ jobs:
           target-environment: "DOW Production"
     needs:
       - build-container-image
-      - scan
       - security-check
       - security-gate
