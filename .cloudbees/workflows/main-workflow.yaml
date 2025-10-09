@@ -141,12 +141,12 @@ jobs:
           # Check if API call was successful
           if echo "$RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
             echo "❌ API Error: $(echo "$RESPONSE" | jq -r '.error')"
-            echo "Using fallback hardcoded values for security gate"
-            VERY_HIGH_COUNT=9
-            HIGH_COUNT=12
-            MEDIUM_COUNT=12
+            echo "Using fallback HARDCODED values for security gate"
+            VERY_HIGH_COUNT=11
+            HIGH_COUNT=6
+            MEDIUM_COUNT=7
             LOW_COUNT=5
-            TOTAL_COUNT=38
+            TOTAL_COUNT=29
           else
             # Extract vulnerability counts for all severity levels
             VERY_HIGH_COUNT=$(echo "$RESPONSE" | jq '.issues | map(select(.severity == "VERY_HIGH")) | length')
@@ -193,7 +193,7 @@ jobs:
             | High | ${{ steps.fetch-vulns.outputs.high_count }} |
             | Medium | ${{ steps.fetch-vulns.outputs.medium_count }} |
             | Low | ${{ steps.fetch-vulns.outputs.low_count }} |
-            | **TOTAL** | **${{ steps.fetch-vulns.outputs.total_count }}** |
+            | **TOTAL** | ${{ steps.fetch-vulns.outputs.total_count }} |
             
             ## Security Gate Status
             ⚠️ **SECURITY GATE TRIGGERED** - ${{ steps.fetch-vulns.outputs.very_high_count }} Very High severity vulnerabilities detected (Threshold: ≥5)
