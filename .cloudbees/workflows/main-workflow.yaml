@@ -122,6 +122,7 @@ jobs:
       medium_count: ${{ steps.fetch-vulns.outputs.medium_count }}
       low_count: ${{ steps.fetch-vulns.outputs.low_count }}
       total_count: ${{ steps.fetch-vulns.outputs.total_count }}
+      scan_datetime: ${{ steps.fetch-vulns.outputs.scan_datetime }}
     steps:
       - name: Fetch Security Vulnerabilities
         id: fetch-vulns
@@ -129,6 +130,9 @@ jobs:
         run: |
           # Install required tools
           apk add --no-cache curl jq
+          
+          # Generate current date and time
+          SCAN_DATETIME=$(date '+%Y-%m-%d %H:%M:%S %Z')
           
           # CloudBees REST API call using secrets
           RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.CLOUDBEES_API_TOKEN }}" \
@@ -159,9 +163,11 @@ jobs:
           echo "$MEDIUM_COUNT" > $CLOUDBEES_OUTPUTS/medium_count
           echo "$LOW_COUNT" > $CLOUDBEES_OUTPUTS/low_count
           echo "$TOTAL_COUNT" > $CLOUDBEES_OUTPUTS/total_count
+          echo "$SCAN_DATETIME" > $CLOUDBEES_OUTPUTS/scan_datetime
           echo "VERY_HIGH" > $CLOUDBEES_OUTPUTS/severity_level
           
           echo "🔍 Security Scan Results (Real-time from CloudBees Unify API):"
+          echo "- Security Check Date & Time: $SCAN_DATETIME"
           echo "- VERY HIGH Vulnerabilities: $VERY_HIGH_COUNT"
           echo "- HIGH Vulnerabilities: $HIGH_COUNT"
           echo "- MEDIUM Vulnerabilities: $MEDIUM_COUNT"
@@ -176,7 +182,7 @@ jobs:
             # Security Vulnerability Report
             
             **Component:** hackers-WesVerify  
-            **Scan Date:** $(date)  
+            **Security Check Date & Time:** ${{ steps.fetch-vulns.outputs.scan_datetime }}  
             **Total Vulnerabilities:** ${{ steps.fetch-vulns.outputs.total_count }}  
             **Data Source:** Real-time CloudBees Unify REST API
             
@@ -208,6 +214,7 @@ jobs:
         uses: docker://alpine:latest
         run: |
           echo "🚨 SECURITY GATE ACTIVATED 🚨"
+          echo "Security Check Date & Time: ${{ needs.security-check.outputs.scan_datetime }}"
           echo "Found ${{ needs.security-check.outputs.vuln_count }} Very High vulnerabilities"
           echo "Total vulnerabilities: ${{ needs.security-check.outputs.total_count }}"
           echo "Breakdown: VH=${{ needs.security-check.outputs.very_high_count }}, H=${{ needs.security-check.outputs.high_count }}, M=${{ needs.security-check.outputs.medium_count }}, L=${{ needs.security-check.outputs.low_count }}"
