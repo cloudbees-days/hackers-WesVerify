@@ -172,7 +172,7 @@ jobs:
       - name: Generate Security Evidence Report
         uses: cloudbees-io/publish-evidence-item@v1
         with:
-          content: |
+          content: |-
             # Security Vulnerability Report
             
             **Component:** hackers-WesVerify  
@@ -193,10 +193,12 @@ jobs:
             ⚠️ **SECURITY GATE TRIGGERED** - ${{ steps.fetch-vulns.outputs.very_high_count }} Very High severity vulnerabilities detected (Threshold: ≥5)
             
             ## Risk Assessment
-            - **Critical Risk**: ${{ steps.fetch-vulns.outputs.very_high_count }} Very High + ${{ steps.fetch-vulns.outputs.high_count }} High = **${{ steps.fetch-vulns.outputs.very_high_count + steps.fetch-vulns.outputs.high_count }}** Critical Issues
+            - **Critical Risk**: ${{ steps.fetch-vulns.outputs.very_high_count }} Very High vulnerabilities
+            - **High Risk**: ${{ steps.fetch-vulns.outputs.high_count }} High severity vulnerabilities  
             - **Total Risk**: All ${{ steps.fetch-vulns.outputs.total_count }} vulnerabilities require attention
             
             **Action Required:** Manual review and approval needed before deployment
+          format: MARKDOWN
     needs: build-container-image
   security-gate:
     needs: security-check
