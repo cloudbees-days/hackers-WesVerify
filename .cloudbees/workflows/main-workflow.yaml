@@ -205,7 +205,9 @@ jobs:
             
             **Action Required:** Manual review and approval needed before deployment
           format: MARKDOWN
-    needs: build-container-image
+    needs: 
+      - build-container-image
+      - security-check
   security-gate:
     needs: security-check
     if: ${{ needs.security-check.outputs.vuln_count > 0 }}
