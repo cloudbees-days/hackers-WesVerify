@@ -390,6 +390,7 @@ jobs:
   deploy:
     environment: DOW Production
     needs:
+      - build-container-image
       - security-check
       - security-gate
     if: ${{ always() && (needs.security-check.outputs.vuln_count <= 2 || needs.security-gate.outputs.gate_status == 'PASSED') }}
