@@ -286,7 +286,7 @@ jobs:
           echo "🚨 SECURITY GATE ACTIVATED 🚨"
           echo "Initial Very High Vulnerabilities: ${{ needs.security-check.outputs.vuln_count }}"
           echo "Threshold: Must be <4 to proceed"
-          echo "Polling: Every 5 minutes for 30 minutes (6 polls total)"
+          echo "Polling: Every 5 minutes for 30 minutes (7 polls total)"
           echo ""
           
           # Initialize variables
@@ -334,13 +334,27 @@ jobs:
               POLL_RESULTS="${POLL_RESULTS}"$'\n'
             fi
             
-            # Break if we've done 6 polls
-            if [ $POLL_COUNT -ge 6 ]; then break; fi
+            # Break if we've done 7 polls
+            if [ $POLL_COUNT -ge 7 ]; then break; fi
             
             # Wait 5 minutes before next poll
             echo "⏰ Waiting 5 minutes before next poll..."
             sleep 300
           done
+          
+          # Check for One-Time Vulnerability Exception after polling completes
+          if [ "$GATE_STATUS" = "FAILED" ]; then
+            echo ""
+            echo "🔍 Checking One-Time Vulnerability Exception..."
+            if [ "${{ secrets.WES_1Time_Exception }}" = "TRUE" ]; then
+              echo "🚨 ONE-TIME VULNERABILITY EXCEPTION GRANTED!"
+              echo "Security gate bypassed by administrative override"
+              GATE_STATUS="PASSED"
+              POLL_RESULTS="${POLL_RESULTS}- **EXCEPTION GRANTED**: One-time vulnerability exception applied"$'\n'
+            else
+              echo "❌ No exception granted - Security gate enforcement active"
+            fi
+          fi
           
           # Final status
           if [ "$GATE_STATUS" = "PASSED" ]; then
@@ -373,7 +387,7 @@ jobs:
             **Gate Status:** ${{ steps.security-polling.outputs.gate_status }}  
             **Initial Very High Count:** ${{ needs.security-check.outputs.vuln_count }}  
             **Final Very High Count:** ${{ steps.security-polling.outputs.final_vuln_count }}  
-            **Polling Duration:** 30 minutes (6 polls every 5 minutes)
+            **Polling Duration:** 30 minutes (7 polls every 5 minutes)
             
             ## Polling Timeline
             ${{ steps.security-polling.outputs.poll_results }}
