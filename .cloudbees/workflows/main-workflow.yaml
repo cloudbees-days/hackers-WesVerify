@@ -117,7 +117,7 @@ jobs:
       BLOCKER_COUNT: ${{ steps.FetchSonarQubeIssues.outputs.BLOCKER_COUNT }}
       CRITICAL_COUNT: ${{ steps.FetchSonarQubeIssues.outputs.CRITICAL_COUNT }}
       MAJOR_COUNT: ${{ steps.FetchSonarQubeIssues.outputs.MAJOR_COUNT }}
-      MINOR_COUNT: ${{ steps.FetchSonarQubeIssues.outputs.MINOR_COUNT }}
+      MINOR_COUNT: ${{ steps.FetchSonarQubeIssues outputs.MINOR_COUNT }}
     steps:
       - name: Checkout
         uses: cloudbees-io/checkout@v1
@@ -271,7 +271,6 @@ jobs:
           format: MARKDOWN
   security-gate:
     needs: security-check
-    if: ${{ needs.security-check.outputs.vuln_count >= 3 }}
     outputs:
       gate_status: ${{ steps.security-polling.outputs.gate_status }}
       final_vuln_count: ${{ steps.security-polling.outputs.final_vuln_count }}
