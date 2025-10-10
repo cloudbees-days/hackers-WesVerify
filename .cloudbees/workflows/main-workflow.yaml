@@ -262,18 +262,16 @@ jobs:
             | **TOTAL** | ${{ steps.fetch-vulns.outputs.total_count }} |
             
             ## Security Gate Decision
-            ${{ steps.fetch-vulns.outputs.very_high_count * 1 < 3 && '✅ **SECURITY GATE BYPASSED** - Fewer than 3 Very High vulnerabilities' || '⚠️ **SECURITY GATE REQUIRED** - 3 or more Very High vulnerabilities detected' }}
+            Security gate will be activated if Very High vulnerabilities >= 3
             
             ## Risk Assessment
             - **Critical Risk**: ${{ steps.fetch-vulns.outputs.very_high_count }} Very High vulnerabilities
             - **High Risk**: ${{ steps.fetch-vulns.outputs.high_count }} High severity vulnerabilities  
             - **Total Risk**: All ${{ steps.fetch-vulns.outputs.total_count }} vulnerabilities require attention
-            
-            **Next Step:** ${{ steps.fetch-vulns.outputs.very_high_count * 1 < 3 && 'Proceeding directly to deployment' || 'Security gate polling will commence' }}
           format: MARKDOWN
   security-gate:
     needs: security-check
-    if: ${{ needs.security-check.outputs.vuln_count * 1 >= 3 }}
+    if: ${{ needs.security-check.outputs.vuln_count >= 3 }}
     outputs:
       gate_status: ${{ steps.security-polling.outputs.gate_status }}
       final_vuln_count: ${{ steps.security-polling.outputs.final_vuln_count }}
@@ -382,10 +380,9 @@ jobs:
             ${{ steps.security-polling.outputs.poll_results }}
             
             ## Gate Decision
-            ${{ steps.security-polling.outputs.gate_status == 'PASSED' && '✅ **SECURITY GATE PASSED** - Very High vulnerabilities reduced to acceptable levels (<4)' || '❌ **SECURITY GATE FAILED** - Developer did not meet the Security Criteria of fixing Very High Vulnerabilities!' }}
+            Security gate threshold: <4 Very High vulnerabilities required to proceed
             
-            **Threshold:** <4 Very High vulnerabilities required to proceed  
-            **Result:** ${{ steps.security-polling.outputs.gate_status == 'PASSED' && 'Deployment approved' || 'Deployment blocked' }}
+            **Result:** Deployment status based on final vulnerability count
           format: MARKDOWN
   deploy:
     environment: DOW Production
