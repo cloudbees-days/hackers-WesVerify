@@ -204,6 +204,17 @@ jobs:
           # Generate current date and time
           SCAN_DATETIME=$(date '+%Y-%m-%d %H:%M:%S %Z')
           
+          # Check for One-Time Bypass before vulnerability check
+          echo "🔍 Checking One-Time Security Gate Bypass..."
+          if [ "${{ secrets.WES_1Time_Bypass }}" = "TRUE" ]; then
+            echo "🚨 ONE-TIME SECURITY GATE BYPASS GRANTED!"
+            echo "Security gate will be skipped regardless of vulnerability count"
+            echo "Administrative override active - proceeding directly to deployment"
+          else
+            echo "✅ No bypass active - normal security gate enforcement"
+          fi
+          echo ""
+          
           # CloudBees REST API call using secrets
           RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.CLOUDBEES_API_TOKEN }}" \
           "https://api.cloudbees.io/v1/resources/2f05829d-ea2c-429e-7d3b-98ba87db3776/endpoints/e8c14f62-66e8-4846-a077-3b9a887a7255/asset-store/components/e21c6290-7343-490e-951a-6a086594ad3a/branches/bf61619e-d63a-435d-a6e8-47666b6a4e38/issues?pagination.sort.order=1&pagination.sort.field_name=severity&pagination.page_length=100&pagination.page=1&triageStatus=UNREVIEWED")
@@ -239,7 +250,13 @@ jobs:
           echo "- MEDIUM Vulnerabilities: $MEDIUM_COUNT"
           echo "- LOW Vulnerabilities: $LOW_COUNT"
           echo "- TOTAL Vulnerabilities: $TOTAL_COUNT"
-          echo "- Security Gate Required: $([ $VERY_HIGH_COUNT -ge 3 ] && echo 'YES (≥3 Very High)' || echo 'NO (<3 Very High)')"
+          
+          # Security gate decision logic with bypass check
+          if [ "${{ secrets.WES_1Time_Bypass }}" = "TRUE" ]; then
+            echo "- Security Gate: BYPASSED (One-time administrative override)"
+          else
+            echo "- Security Gate Required: $([ $VERY_HIGH_COUNT -ge 3 ] && echo 'YES (≥3 Very High)' || echo 'NO (<3 Very High)')"
+          fi
 
       - name: Generate Security Evidence Report
         uses: cloudbees-io/publish-evidence-item@v1
@@ -262,7 +279,7 @@ jobs:
             | **TOTAL** | ${{ steps.fetch-vulns.outputs.total_count }} |
             
             ## Security Gate Decision
-            Security gate will be activated if Very High vulnerabilities >= 3
+            One-time bypass check: Administrative override capability available
             
             ## Risk Assessment
             - **Critical Risk**: ${{ steps.fetch-vulns.outputs.very_high_count }} Very High vulnerabilities
@@ -271,6 +288,7 @@ jobs:
           format: MARKDOWN
   security-gate:
     needs: security-check
+    if: ${{ secrets.WES_1Time_Bypass != 'TRUE' }}
     outputs:
       gate_status: ${{ steps.security-polling.outputs.gate_status }}
       final_vuln_count: ${{ steps.security-polling.outputs.final_vuln_count }}
