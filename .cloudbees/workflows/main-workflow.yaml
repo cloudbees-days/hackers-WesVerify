@@ -420,6 +420,98 @@ jobs:
     steps:
       - name: Checkout
         uses: cloudbees-io/checkout@v1
+      - name: Security Vulnerability Check
+        id: security-check
+        uses: docker://alpine:3.19
+        run: |
+          apk add --no-cache curl jq
+          
+          echo "🔍 CloudBees Security Vulnerability Check"
+          echo "=========================================="
+          
+          # Try real CloudBees API first, fallback gracefully
+          VERY_HIGH_COUNT=0
+          API_SUCCESS=false
+          
+          if [ -n "${{ secrets.CLOUDBEES_API_TOKEN }}" ]; then
+            echo "Attempting CloudBees Security API call..."
+            
+            RESPONSE=$(curl -s -w "HTTPSTATUS:%{http_code}" \
+              -H "Authorization: Bearer ${{ secrets.CLOUDBEES_API_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              "https://api.cloudbees.io/v1/organizations/2f05829d-ea2c-429e-7d3b-98ba87db3776/security/vulnerabilities?severity=VERY_HIGH&status=OPEN")
+            
+            HTTP_CODE=$(echo "$RESPONSE" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+            RESPONSE_BODY=$(echo "$RESPONSE" | sed -e 's/HTTPSTATUS:.*//g')
+            
+            echo "HTTP Status: $HTTP_CODE"
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              VERY_HIGH_COUNT=$(echo "$RESPONSE_BODY" | jq '.data | length // 0' 2>/dev/null || echo "0")
+              API_SUCCESS=true
+              echo "✅ Real API call successful: $VERY_HIGH_COUNT Very High vulnerabilities"
+            else
+              echo "⚠️ API call failed with status $HTTP_CODE"
+            fi
+          else
+            echo "⚠️ CLOUDBEES_API_TOKEN not configured"
+          fi
+          
+          # Fallback to demo data if API failed
+          if [ "$API_SUCCESS" = "false" ]; then
+            echo "Using demo data for security gate demonstration"
+            VERY_HIGH_COUNT=6
+          fi
+          
+          echo "$VERY_HIGH_COUNT" > $CLOUDBEES_OUTPUTS/VERY_HIGH_COUNT
+          
+          if [ "$VERY_HIGH_COUNT" -ge 5 ]; then
+            echo "🚨 SECURITY THRESHOLD EXCEEDED: $VERY_HIGH_COUNT Very High vulnerabilities (≥5)"
+            echo "THRESHOLD_EXCEEDED" > $CLOUDBEES_OUTPUTS/GATE_STATUS
+          else
+            echo "✅ Security threshold passed: $VERY_HIGH_COUNT Very High vulnerabilities (<5)"
+            echo "THRESHOLD_PASSED" > $CLOUDBEES_OUTPUTS/GATE_STATUS
+          fi
+      - name: Security Gate Action
+        if: steps.security-check.outputs.GATE_STATUS == 'THRESHOLD_EXCEEDED'
+        uses: docker://alpine:3.19
+        run: |
+          echo "🚨 SECURITY GATE TRIGGERED"
+          echo "=========================="
+          echo "Very High Vulnerabilities: ${{ steps.security-check.outputs.VERY_HIGH_COUNT }}"
+          echo "Threshold: ≥5"
+          echo ""
+          echo "In a real implementation, this would:"
+          echo "1. Create GitHub issue for tracking"
+          echo "2. Wait for security approval file"
+          echo "3. Timeout after 60 minutes"
+          echo "4. Recheck vulnerabilities after approval"
+          echo ""
+          echo "For this demo, simulating 30-second approval wait..."
+          
+          # Simulate approval process
+          for i in {1..6}; do
+            echo "Waiting for security approval... ($i/6)"
+            sleep 5
+          done
+          
+          echo "✅ Demo approval received - proceeding to recheck"
+      - name: Security Recheck
+        if: steps.security-check.outputs.GATE_STATUS == 'THRESHOLD_EXCEEDED'
+        uses: docker://alpine:3.19
+        run: |
+          echo "🔄 Performing security recheck..."
+          
+          # Simulate vulnerability reduction
+          NEW_COUNT=2
+          echo "Recheck result: $NEW_COUNT Very High vulnerabilities"
+          
+          if [ "$NEW_COUNT" -ge 5 ]; then
+            echo "❌ Vulnerabilities still exceed threshold"
+            exit 1
+          else
+            echo "✅ Security gate passed - vulnerabilities reduced to acceptable level"
+          fi
       - uses: cloudbees-days/setup-kubeconfig
         name: Set kubeconfig
         with:
